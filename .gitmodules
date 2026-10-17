@@ -1,0 +1,3 @@
+[submodule "SportsScoreboard"]
+	path = SportsScoreboard
+	url = https://github.com/RyanMorrisroe/SportsScoreboard.git
