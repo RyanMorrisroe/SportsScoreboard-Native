@@ -1,4 +1,18 @@
 {
+  "name": "sports-scoreboard-native",
+  "version": "0.1.0",
+  "description": "Windows desktop wrapper for Sports Scoreboard",
+  "author": "Ryan Morrisroe",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RyanMorrisroe/SportsScoreboard-Native.git"
+  },
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check": "tauri info"
+  },
   "dependencies": {
     "@tauri-apps/cli": "^2.12.3"
   }

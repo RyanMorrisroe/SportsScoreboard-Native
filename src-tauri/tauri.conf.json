@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "SportsScoreboard",
-  "version": "0.1.0",
+  "version": "../package.json",
   "identifier": "com.ryan.sportsscoreboard",
   "build": {
     "frontendDist": "../SportsScoreboard/dist",
@@ -13,19 +13,32 @@
     "windows": [
       {
         "title": "Sports Scoreboard",
-        "width": 800,
-        "height": 600,
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 640,
+        "center": true,
         "resizable": true,
         "fullscreen": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://site.api.espn.com; img-src 'self' data: https://*.espncdn.com https://espncdn.com; font-src 'self' data:; object-src 'none'; base-uri 'self'"
     }
   },
   "bundle": {
     "active": true,
+    "category": "Sports",
+    "shortDescription": "Sports scores, standings, and game details",
+    "longDescription": "A desktop scoreboard for college football, NFL, MLB, NBA, and NHL, powered by ESPN's public site API.",
+    "publisher": "RyanMorrisroe",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "homepage": "https://github.com/RyanMorrisroe/SportsScoreboard-Native",
     "targets": ["nsis"],
+    "windows": {
+      "allowDowngrades": false
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

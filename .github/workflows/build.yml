@@ -1,0 +1,160 @@
+name: Windows Build
+
+on:
+  pull_request:
+    branches: [main]
+  repository_dispatch:
+    types: [sports-scoreboard-release]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sports-scoreboard-${{ github.event.client_payload.release_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      app_version: ${{ steps.release-version.outputs.app_version }}
+      release_tag: ${{ steps.release-version.outputs.release_tag }}
+      wrapper_version: ${{ steps.release-version.outputs.wrapper_version }}
+    steps:
+      - name: Check out wrapper
+        uses: actions/checkout@v7
+        with:
+          submodules: ${{ github.event_name != 'repository_dispatch' }}
+
+      - name: Validate SPA release event
+        if: github.event_name == 'repository_dispatch'
+        shell: pwsh
+        env:
+          SPA_TAG: ${{ github.event.client_payload.tag }}
+          SPA_VERSION: ${{ github.event.client_payload.version }}
+          SPA_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          if ($env:SPA_TAG -notmatch '^v(?<version>(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))$') {
+            throw "Unsupported SPA release tag: $env:SPA_TAG"
+          }
+          if ($Matches.version -ne $env:SPA_VERSION) {
+            throw "SPA tag and payload version do not match"
+          }
+          if ($env:SPA_SHA -notmatch '^[0-9a-f]{40}$') {
+            throw "Invalid SPA commit SHA"
+          }
+
+      - name: Check out released SPA source
+        if: github.event_name == 'repository_dispatch'
+        uses: actions/checkout@v7
+        with:
+          repository: RyanMorrisroe/SportsScoreboard
+          ref: ${{ github.event.client_payload.tag }}
+          path: SportsScoreboard
+
+      - name: Verify released SPA commit
+        if: github.event_name == 'repository_dispatch'
+        shell: pwsh
+        env:
+          SPA_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          $checkedOutSha = (git -C SportsScoreboard rev-parse HEAD).Trim()
+          if ($checkedOutSha -ne $env:SPA_SHA) {
+            throw "Checked out SPA commit $checkedOutSha does not match release commit $env:SPA_SHA"
+          }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install wrapper dependencies
+        run: npm ci
+
+      - name: Install SPA dependencies
+        run: npm ci --prefix SportsScoreboard
+
+      - name: Compose release version
+        if: github.event_name == 'repository_dispatch'
+        id: release-version
+        shell: pwsh
+        env:
+          SPA_TAG: ${{ github.event.client_payload.tag }}
+        run: node scripts/compose-release-version.mjs
+
+      - name: Prepare composite version
+        if: github.event_name == 'repository_dispatch'
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.release-version.outputs.app_version }}
+        run: node scripts/prepare-release-build.mjs
+
+      - name: Build NSIS installer
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.release-version.outputs.app_version }}
+        run: |
+          if ($env:APP_VERSION) {
+            npm run build -- --ci --config src-tauri/tauri.release.conf.json
+          } else {
+            npm run build -- --ci
+          }
+
+      - name: Upload NSIS installer
+        if: github.event_name == 'repository_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sports-scoreboard-${{ steps.release-version.outputs.release_tag }}-windows
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.event_name == 'repository_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out wrapper
+        uses: actions/checkout@v7
+
+      - name: Download installer
+        uses: actions/download-artifact@v7
+        with:
+          name: sports-scoreboard-${{ needs.build.outputs.release_tag }}-windows
+          path: artifacts
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+          APP_VERSION: ${{ needs.build.outputs.app_version }}
+          WRAPPER_VERSION: ${{ needs.build.outputs.wrapper_version }}
+          SPA_TAG: ${{ github.event.client_payload.tag }}
+          SPA_SHA: ${{ github.event.client_payload.sha }}
+          SPA_RELEASE_URL: ${{ github.event.client_payload.release_url }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; skipping duplicate dispatch."
+            exit 0
+          fi
+          notes=$(printf '%s\n' \
+            "Windows NSIS installer for Sports Scoreboard." \
+            "" \
+            "SPA release: $SPA_TAG ($SPA_RELEASE_URL)" \
+            "SPA commit: $SPA_SHA" \
+            "Wrapper version: $WRAPPER_VERSION" \
+            "Composite app version: $APP_VERSION")
+          gh release create "$RELEASE_TAG" artifacts/*-setup.exe \
+            --target "$GITHUB_SHA" \
+            --title "Sports Scoreboard $APP_VERSION" \
+            --notes "$notes"

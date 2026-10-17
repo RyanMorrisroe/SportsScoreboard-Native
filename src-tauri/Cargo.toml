@@ -1,10 +1,11 @@
 [package]
-name = "app"
+name = "sports-scoreboard-native"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
-license = ""
-repository = ""
+description = "Windows desktop wrapper for Sports Scoreboard"
+authors = ["Ryan Morrisroe"]
+license = "MIT"
+repository = "https://github.com/RyanMorrisroe/SportsScoreboard-Native"
+homepage = "https://github.com/RyanMorrisroe/SportsScoreboard-Native"
 edition = "2024"
 rust-version = "1.90"
 
