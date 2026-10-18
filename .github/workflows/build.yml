@@ -217,6 +217,14 @@ jobs:
       - name: Install SPA dependencies
         run: npm ci --prefix SportsScoreboard
 
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential curl file libayatana-appindicator3-dev \
+            libglib2.0-dev libssl-dev libwebkit2gtk-4.1-dev \
+            librsvg2-dev libxdo-dev pkg-config wget
+
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
