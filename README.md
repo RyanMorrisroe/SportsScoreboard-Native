@@ -43,7 +43,7 @@ The installer is currently unsigned. Windows SmartScreen may display an unrecogn
 
 ## Android Distribution
 
-The Android target requires API 36 or newer. SPA release builds produce an ARM64 APK signed with the project's persistent private sideloading key and attach it to the matching GitHub release. This is not a Play Store release. Keep the signing key private; Android requires APKs to be signed, and the stable key allows users to install later releases over the existing app.
+The Android target requires API 36 or newer. SPA release builds produce an ARM64 APK signed with the project's persistent private sideloading key and attach it to the matching GitHub release. This is not a Play Store release and the signing key used in github builds is kept private; Android requires APKs to be signed, and the stable key allows users to install later releases over the existing app.
 
 ## Development Requirements
 
@@ -53,6 +53,8 @@ The Android target requires API 36 or newer. SPA release builds produce an ARM64
 - Git with submodule support.
 - Android Studio with Android SDK Platform 37, Build Tools 37.0.0, NDK 30.0.16248370, and the Android Rust target for Android development/builds.
 - Java 21 or newer for Android Gradle builds.
+
+Strongly recommend following the Tauri setup docs at https://v2.tauri.app/start/prerequisites/
 
 Clone the wrapper and its pinned SPA revision, then install both projects' dependencies:
 
@@ -111,8 +113,6 @@ The Rust tests cover the native ESPN URL allowlist, redirects, response limits, 
 The wrapper version is `0.1.0` in both the root `package.json` and `src-tauri/Cargo.toml`; keep these values synchronized when changing the wrapper version. The published app version combines the stable SPA release version with the wrapper version. For example, SPA release `v1.3.0` and wrapper version `0.1.0` produce app version `1.3.0-wrapper.0.1.0` and wrapper release tag `v1.3.0-wrapper.0.1.0`. CI temporarily applies that composite version to the Rust package and Tauri build config; it also uses the workflow run number as Android's monotonically increasing `versionCode`. These generated overrides are not committed.
 
 Wrapper pull requests run Windows and Android builds but do not publish. A published stable SPA release with a `vMAJOR.MINOR.PATCH` tag triggers the cross-repository dispatch, builds the exact released SPA tag and commit, then publishes the NSIS installer and signed ARM64 APK in this repository. SPA branch pushes do not trigger wrapper releases. Duplicate release dispatches are ignored when the composite wrapper release already exists.
-
-Configure these GitHub Actions repository secrets for signed Android release APKs: `ANDROID_KEYSTORE_BASE64` (base64-encoded JKS file), `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and `ANDROID_STORE_PASSWORD`. Do not commit the keystore or its passwords.
 
 To release wrapper-only changes, increment the version in both the root `package.json` and `src-tauri/Cargo.toml`, then refresh `src-tauri/Cargo.lock` with a Cargo build. The new wrapper version is included the next time the SPA publishes a release; wrapper commits and tags do not independently publish installers.
 
