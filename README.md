@@ -91,15 +91,6 @@ Wrapper pull requests run a Windows build but do not publish. A published stable
 
 To release wrapper-only changes, increment the version in both the root `package.json` and `src-tauri/Cargo.toml`, then refresh `src-tauri/Cargo.lock` with a Cargo build. The new wrapper version is included the next time the SPA publishes a release; wrapper commits and tags do not independently publish installers.
 
-### Dispatch Credential Setup
-
-The SPA release workflow uses a GitHub App installation token to dispatch into this repository. Configure the app for the `RyanMorrisroe` account with `Contents: write` permission and install it with access to the `SportsScoreboard-Native` repository only. In the SPA repository's **Settings > Secrets and variables > Actions**, add:
-
-- `NATIVE_WRAPPER_APP_CLIENT_ID`: the GitHub App client ID.
-- `NATIVE_WRAPPER_APP_PRIVATE_KEY`: the GitHub App private key PEM.
-
-The token is scoped to the wrapper repository and only the contents permission is requested. The wrapper release workflow uses its own `GITHUB_TOKEN` with `contents: write` only in the publishing job.
-
 ## Configuration
 
 The product name is `SportsScoreboard`, and its Tauri identifier is `com.ryan.sportsscoreboard`. The startup window is centered at 1280 x 800 logical pixels and can be resized down to 900 x 640. The production CSP permits the frontend's verified CDN and ESPN hosts; update it only when the SPA's actual network requirements change.
