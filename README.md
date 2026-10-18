@@ -2,23 +2,26 @@
 
 Sports Scoreboard Desktop is a Windows desktop application that packages the [Sports Scoreboard web app](https://github.com/RyanMorrisroe/SportsScoreboard) inside a native Tauri 2 window. The desktop project owns the Tauri shell, Windows installer, application identity, and release automation. The web app remains a separate project and is included here as a Git submodule.
 
-This is a native WebView wrapper, not a rewrite of the scoreboard UI and not a hosted service. The installed app loads the built SPA from assets embedded in the application. There is no application server or backend.
+This is a native WebView wrapper, not a rewrite of the scoreboard UI and not a hosted service. The installed app loads the built SPA from assets embedded in the application. The Tauri process includes a small command for allowlisted ESPN requests; it does not run a separate application server.
 
 ## What The App Does
 
 The SPA provides scoreboards for College Football, NFL, MLB, NBA, and NHL, plus TV lineup, standings, game details, team details, schedules, and favorite-team highlighting. It refreshes scoreboard data periodically and adapts its browser UI to desktop and mobile-sized windows.
 
-The browser requests ESPN's public Site API directly. No ESPN API key or account is configured by this wrapper. An internet connection is required for live scores, team data, standings, and remote logos; availability and response formats are controlled by ESPN. The app is not affiliated with or endorsed by ESPN.
+The standalone SPA requests ESPN's public Site API directly. In the Tauri desktop app, ESPN JSON requests go through a constrained Rust command using a native HTTPS client; the WebView does not fetch the ESPN API directly. No ESPN API key or account is configured. An internet connection is required for live scores, team data, standings, and remote logos; availability and response formats are controlled by ESPN. The app is not affiliated with or endorsed by ESPN.
 
 ```mermaid
 flowchart LR
 	Installer[Windows NSIS installer] --> Tauri[Tauri desktop shell]
 	Tauri --> WebView[Windows WebView2]
 	WebView --> SPA[Bundled Sports Scoreboard SPA]
-	SPA -->|HTTPS requests| ESPN[ESPN public Site API and logo CDN]
+	SPA -->|Tauri IPC| Proxy[Allowlisted native ESPN fetch]
+	Proxy -->|HTTPS requests| ESPN[ESPN public Site API]
+	SPA -. standalone browser .-> ESPN
+	WebView -->|Image requests| ESPNCDN[ESPN logo CDN]
 ```
 
-The frontend currently loads Vue 3 from `unpkg.com` and Tailwind's browser package from `cdn.jsdelivr.net`; those scripts, ESPN API requests, and ESPN-hosted logos are allowed by the production Content Security Policy. The app therefore needs network access to those hosts as well as the ESPN endpoints.
+Vue 3 and Tailwind CSS are bundled locally. The production Content Security Policy allows the app's local scripts, Tauri IPC, development server connections, and ESPN-hosted logos. The native command restricts outbound JSON requests to supported ESPN API routes and caps response size and request time.
 
 ## Repository Layout
 
@@ -29,11 +32,11 @@ The frontend currently loads Vue 3 from `unpkg.com` and Tailwind's browser packa
 | `scripts/`                    | Wrapper release-version helpers used by GitHub Actions.                                             |
 | `.github/workflows/build.yml` | Wrapper PR build and SPA-release-driven Windows release.                                            |
 
-The Tauri process registers no application-specific native commands. Its `main` window has only Tauri's `core:default` capability; it does not grant filesystem or shell access. Debug builds enable Tauri logging; release builds do not.
+The Tauri process registers one application-specific command for allowlisted ESPN JSON requests. Its `main` window has only Tauri's `core:default` capability; it does not grant filesystem or shell access. Debug builds enable Tauri logging; release builds do not.
 
 ## Windows Distribution
 
-The configured distribution target is a 64-bit Windows NSIS setup executable. The installer defaults to a per-user installation and refuses to downgrade an installed version. Tauri's default WebView2 bootstrapper mode may download the WebView2 runtime when it is missing. The app itself also needs internet access to load its CDN scripts and query ESPN.
+The configured distribution target is a 64-bit Windows NSIS setup executable. The installer defaults to a per-user installation and refuses to downgrade an installed version. Tauri's default WebView2 bootstrapper mode may download the WebView2 runtime when it is missing. The app needs internet access for ESPN API data and remote team logos.
 
 The installer is currently unsigned. Windows SmartScreen may display an unrecognized-publisher warning. No in-app updater is configured; install a newer release manually.
 
@@ -42,7 +45,6 @@ The installer is currently unsigned. Windows SmartScreen may display an unrecogn
 - Windows with the Visual Studio C++ build tools and the WebView2 runtime.
 - Node.js 20 or newer and npm.
 - Rust 1.90 or newer with the MSVC Windows target.
-- Python 3 for the SPA's local HTTP development server.
 - Git with submodule support.
 
 Clone the wrapper and its pinned SPA revision, then install both projects' dependencies:
@@ -67,7 +69,7 @@ Run the desktop app in development mode:
 npm run dev
 ```
 
-Tauri starts the SPA's Python server on `http://localhost:8000` and opens the WebView. Use the built-in Tauri CLI information command to inspect the local toolchain:
+Tauri starts the SPA's Vite development server on `http://localhost:8000` and opens the WebView. Use the built-in Tauri CLI information command to inspect the local toolchain:
 
 ```powershell
 npm run check
@@ -79,9 +81,9 @@ Create a production build and NSIS installer locally:
 npm run build
 ```
 
-The Tauri build hook runs `npm run build` inside `SportsScoreboard/`. That generates the ignored `SportsScoreboard/dist/` directory and runs the SPA project's existing build checks before Tauri embeds it. The installer is written under `src-tauri/target/release/bundle/nsis/`.
+Before packaging, `npm run build` runs the Rust unit tests. The Tauri build hook then runs `npm run build` inside `SportsScoreboard/`, generating the ignored `SportsScoreboard/dist/` directory and running the SPA project's existing checks before Tauri embeds it. The installer is written under `src-tauri/target/release/bundle/nsis/`.
 
-This wrapper adds no unit-test suite because it contains no scoreboard domain logic. The SPA's existing checks remain part of its own build.
+The Rust tests cover the native ESPN URL allowlist, redirects, response limits, and error handling. The SPA maintains its own test suite for browser behavior and scoreboard domain logic.
 
 ## Versioning And Releases
 
@@ -93,6 +95,6 @@ To release wrapper-only changes, increment the version in both the root `package
 
 ## Configuration
 
-The product name is `SportsScoreboard`, and its Tauri identifier is `com.ryan.sportsscoreboard`. The startup window is centered at 1280 x 800 logical pixels and can be resized down to 900 x 640. The production CSP permits the frontend's verified CDN and ESPN hosts; update it only when the SPA's actual network requirements change.
+The product name is `SportsScoreboard`, and its Tauri identifier is `com.ryan.sportsscoreboard`. The startup window is centered at 1280 x 800 logical pixels and can be resized down to 900 x 640. The production CSP permits local scripts, Tauri IPC, Vite development connections, and ESPN-hosted logos; the native command performs ESPN API requests outside the WebView.
 
 The bundle metadata and license are defined in `src-tauri/tauri.conf.json` and the Rust manifest. The root `LICENSE` applies to this wrapper; the SPA remains a separate repository with its own project metadata and license.

@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' tauri://localhost ipc: http://localhost:*; script-src 'self'; style-src 'self' 'unsafe-inline' blob:; connect-src 'self' https://*.espn.com https://espn.com ipc: tauri://localhost ws://localhost:* http://localhost:*; img-src 'self' data: blob: https://*.espncdn.com https://espncdn.com; font-src 'self' data:; object-src 'none'; base-uri 'self'"
+      "csp": "default-src 'self' tauri://localhost ipc: http://localhost:*; script-src 'self'; style-src 'self' 'unsafe-inline' blob:; connect-src 'self' ipc: tauri://localhost ws://localhost:* http://localhost:*; img-src 'self' data: blob: https://*.espncdn.com https://espncdn.com; font-src 'self' data:; object-src 'none'; base-uri 'self'"
     }
   },
   "bundle": {
