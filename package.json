@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "tauri dev",
-    "prebuild": "cargo test --locked --manifest-path src-tauri/Cargo.toml",
+    "prebuild": "cargo test --manifest-path src-tauri/Cargo.toml",
     "build": "tauri build",
     "check": "tauri info"
   },
