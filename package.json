@@ -1,7 +1,7 @@
 {
   "name": "sports-scoreboard-native",
   "version": "0.1.0",
-  "description": "Windows desktop wrapper for Sports Scoreboard",
+  "description": "Windows and Android native app for Sports Scoreboard",
   "author": "Ryan Morrisroe",
   "license": "MIT",
   "repository": {
@@ -10,6 +10,10 @@
   },
   "scripts": {
     "dev": "tauri dev",
+    "tauri": "tauri",
+    "android:init": "tauri android init",
+    "android:dev": "tauri android dev",
+    "android:build": "tauri android build",
     "prebuild": "cargo test --manifest-path src-tauri/Cargo.toml",
     "build": "tauri build",
     "check": "tauri info"

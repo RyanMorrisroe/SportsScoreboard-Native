@@ -6,6 +6,10 @@ const appVersion = process.env.APP_VERSION;
 if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-wrapper\.(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(appVersion ?? "")) {
   throw new Error(`Invalid composite app version: ${appVersion ?? "<empty>"}`);
 }
+const androidVersionCode = Number(process.env.ANDROID_VERSION_CODE);
+if (!Number.isSafeInteger(androidVersionCode) || androidVersionCode < 1 || androidVersionCode > 2_100_000_000) {
+  throw new Error(`Invalid Android version code: ${process.env.ANDROID_VERSION_CODE ?? "<empty>"}`);
+}
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const cargoPath = resolve(root, "src-tauri/Cargo.toml");
@@ -29,4 +33,10 @@ if (!updatedVersion) {
 }
 
 writeFileSync(cargoPath, cargoLines.join("\n"));
-writeFileSync(resolve(root, "src-tauri/tauri.release.conf.json"), `${JSON.stringify({ version: appVersion }, null, 2)}\n`);
+writeFileSync(
+  resolve(root, "src-tauri/tauri.release.conf.json"),
+  `${JSON.stringify({
+    version: appVersion,
+    bundle: { android: { versionCode: androidVersionCode } },
+  }, null, 2)}\n`,
+);

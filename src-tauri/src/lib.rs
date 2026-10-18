@@ -4,6 +4,14 @@ use std::{sync::OnceLock, time::Duration};
 
 use reqwest::{Client, redirect::Policy};
 
+#[cfg(target_os = "android")]
+use jni::{
+    errors::ThrowRuntimeExAndDefault,
+    jni_mangle,
+    objects::{JClass, JObject},
+    EnvUnowned,
+};
+
 static ESPN_CLIENT: OnceLock<Result<Client, String>> = OnceLock::new();
 
 fn espn_client() -> Result<&'static Client, String> {
@@ -51,6 +59,19 @@ async fn fetch_espn(url: String) -> Result<serde_json::Value, String> {
         })
     })
     .await
+}
+
+#[cfg(target_os = "android")]
+#[allow(non_snake_case)]
+#[jni_mangle("com.ryan.sportsscoreboard.MainActivity")]
+pub fn initializeRustlsPlatformVerifier<'local>(
+    mut unowned_env: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    context: JObject<'local>,
+) {
+    unowned_env
+        .with_env(|env| rustls_platform_verifier::android::init_with_env(env, context))
+        .resolve::<ThrowRuntimeExAndDefault>();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

@@ -1,7 +1,7 @@
 [package]
 name = "sports-scoreboard-native"
 version = "0.1.0"
-description = "Windows desktop wrapper for Sports Scoreboard"
+description = "Windows and Android native app for Sports Scoreboard"
 authors = ["Ryan Morrisroe"]
 license = "MIT"
 repository = "https://github.com/RyanMorrisroe/SportsScoreboard-Native"
@@ -25,3 +25,7 @@ log = "0.4"
 reqwest = { version = "0.13", features = ["json", "stream"] }
 tauri = { version = "2.12.4", features = [] }
 tauri-plugin-log = "2"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.22.4"
+rustls-platform-verifier = "0.7.1"

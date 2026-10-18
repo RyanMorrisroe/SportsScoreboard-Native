@@ -1,4 +1,4 @@
-name: Windows Build
+name: Build
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  windows:
     runs-on: windows-latest
     outputs:
       app_version: ${{ steps.release-version.outputs.app_version }}
@@ -95,6 +95,7 @@ jobs:
         shell: pwsh
         env:
           APP_VERSION: ${{ steps.release-version.outputs.app_version }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
         run: node scripts/prepare-release-build.mjs
 
       - name: Build NSIS installer
@@ -117,8 +118,177 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out wrapper
+        uses: actions/checkout@v7
+        with:
+          submodules: ${{ github.event_name != 'repository_dispatch' }}
+
+      - name: Validate SPA release event
+        if: github.event_name == 'repository_dispatch'
+        shell: bash
+        env:
+          SPA_TAG: ${{ github.event.client_payload.tag }}
+          SPA_VERSION: ${{ github.event.client_payload.version }}
+          SPA_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          if [[ "$SPA_TAG" =~ ^v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$ ]]; then
+            tag_version="${BASH_REMATCH[1]}"
+          else
+            echo "Unsupported SPA release tag: $SPA_TAG" >&2
+            exit 1
+          fi
+          if [[ "$tag_version" != "$SPA_VERSION" ]]; then
+            echo "SPA tag and payload version do not match" >&2
+            exit 1
+          fi
+          if [[ ! "$SPA_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid SPA commit SHA" >&2
+            exit 1
+          fi
+
+      - name: Check out released SPA source
+        if: github.event_name == 'repository_dispatch'
+        uses: actions/checkout@v7
+        with:
+          repository: RyanMorrisroe/SportsScoreboard
+          ref: ${{ github.event.client_payload.tag }}
+          path: SportsScoreboard
+
+      - name: Verify released SPA commit
+        if: github.event_name == 'repository_dispatch'
+        shell: bash
+        env:
+          SPA_SHA: ${{ github.event.client_payload.sha }}
+        run: |
+          checked_out_sha=$(git -C SportsScoreboard rev-parse HEAD)
+          if [[ "$checked_out_sha" != "$SPA_SHA" ]]; then
+            echo "Checked out SPA commit $checked_out_sha does not match release commit $SPA_SHA" >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          # 1. Install platforms using default stable channel
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+
+          # 2. Install the specific preview NDK from Android Studio via Canary channel
+          sdkmanager --channel=3 "ndk;30.0.16248370"
+
+          # 3. Export environment variables
+          echo "NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install wrapper dependencies
+        run: npm ci
+
+      - name: Install SPA dependencies
+        run: npm ci --prefix SportsScoreboard
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential curl file libayatana-appindicator3-dev \
+            libglib2.0-dev libssl-dev libwebkit2gtk-4.1-dev \
+            librsvg2-dev libxdo-dev pkg-config wget
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Compose release version
+        if: github.event_name == 'repository_dispatch'
+        id: release-version
+        env:
+          SPA_TAG: ${{ github.event.client_payload.tag }}
+        run: node scripts/compose-release-version.mjs
+
+      - name: Prepare composite version
+        if: github.event_name == 'repository_dispatch'
+        env:
+          APP_VERSION: ${{ steps.release-version.outputs.app_version }}
+          ANDROID_VERSION_CODE: ${{ github.run_number }}
+        run: node scripts/prepare-release-build.mjs
+
+      - name: Configure Android release signing
+        if: github.event_name == 'repository_dispatch'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        shell: bash
+        run: |
+          for secret_name in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD ANDROID_STORE_PASSWORD; do
+            if [[ -z "${!secret_name}" ]]; then
+              echo "Missing required GitHub Actions secret: $secret_name" >&2
+              exit 1
+            fi
+          done
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/sports-scoreboard-release.jks"
+          {
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/sports-scoreboard-release.jks"
+            printf 'storePassword=%s\n' "$ANDROID_STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
+          } > src-tauri/gen/android/keystore.properties
+
+      - name: Build ARM64 APK
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "repository_dispatch" ]]; then
+            npm run android:build -- --apk --target aarch64 --ci --config src-tauri/tauri.release.conf.json
+          else
+            npm run android:build -- --apk --target aarch64 --ci
+          fi
+
+      - name: Verify APK signature
+        if: github.event_name == 'repository_dispatch'
+        run: "$ANDROID_HOME/build-tools/37.0.0/apksigner verify --verbose src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk"
+
+      - name: Upload Android APK
+        if: github.event_name == 'repository_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sports-scoreboard-${{ steps.release-version.outputs.release_tag }}-android
+          path: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
-    needs: build
+    needs: [windows, android]
     if: github.event_name == 'repository_dispatch'
     runs-on: ubuntu-latest
     permissions:
@@ -130,15 +300,21 @@ jobs:
       - name: Download installer
         uses: actions/download-artifact@v7
         with:
-          name: sports-scoreboard-${{ needs.build.outputs.release_tag }}-windows
-          path: artifacts
+          name: sports-scoreboard-${{ needs.windows.outputs.release_tag }}-windows
+          path: artifacts/windows
+
+      - name: Download Android APK
+        uses: actions/download-artifact@v7
+        with:
+          name: sports-scoreboard-${{ needs.windows.outputs.release_tag }}-android
+          path: artifacts/android
 
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
-          APP_VERSION: ${{ needs.build.outputs.app_version }}
-          WRAPPER_VERSION: ${{ needs.build.outputs.wrapper_version }}
+          RELEASE_TAG: ${{ needs.windows.outputs.release_tag }}
+          APP_VERSION: ${{ needs.windows.outputs.app_version }}
+          WRAPPER_VERSION: ${{ needs.windows.outputs.wrapper_version }}
           SPA_TAG: ${{ github.event.client_payload.tag }}
           SPA_SHA: ${{ github.event.client_payload.sha }}
           SPA_RELEASE_URL: ${{ github.event.client_payload.release_url }}
@@ -148,13 +324,13 @@ jobs:
             exit 0
           fi
           notes=$(printf '%s\n' \
-            "Windows NSIS installer for Sports Scoreboard." \
+            "Windows NSIS installer and signed Android APK for sideloading." \
             "" \
             "SPA release: $SPA_TAG ($SPA_RELEASE_URL)" \
             "SPA commit: $SPA_SHA" \
             "Wrapper version: $WRAPPER_VERSION" \
             "Composite app version: $APP_VERSION")
-          gh release create "$RELEASE_TAG" artifacts/*-setup.exe \
+          gh release create "$RELEASE_TAG" artifacts/windows/*-setup.exe artifacts/android/*.apk \
             --target "$GITHUB_SHA" \
             --title "Sports Scoreboard $APP_VERSION" \
             --notes "$notes"

@@ -3344,8 +3344,10 @@ dependencies = [
 name = "sports-scoreboard-native"
 version = "0.1.0"
 dependencies = [
+ "jni 0.22.4",
  "log",
  "reqwest",
+ "rustls-platform-verifier",
  "serde",
  "serde_json",
  "tauri",
