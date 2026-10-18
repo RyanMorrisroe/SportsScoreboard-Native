@@ -189,7 +189,13 @@ jobs:
       - name: Install Android SDK packages
         shell: bash
         run: |
-          sdkmanager --channel=3 "platforms;android-37" "build-tools;37.0.0" "ndk;30.0.16248370"
+          # 1. Install platforms using default stable channel
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+
+          # 2. Install the specific preview NDK from Android Studio via Canary channel
+          sdkmanager --channel=3 "ndk;30.0.16248370"
+
+          # 3. Export environment variables
           echo "NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
 
       - name: Set up Rust
