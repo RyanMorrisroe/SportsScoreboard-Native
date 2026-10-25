@@ -8,6 +8,8 @@ This is a native WebView wrapper, not a rewrite of the scoreboard UI and not a h
 
 The SPA provides scoreboards for College Football, NFL, MLB, NBA, and NHL, plus TV lineup, standings, game details, team details, and schedules. Users can choose favorite teams per league and customize sport-tab visibility and order. Preferences persist locally in browser storage and are not synced across browser profiles or devices. The app refreshes scoreboard data periodically and adapts its UI to desktop and mobile-sized windows.
 
+The SPA is implemented in strict TypeScript, including its Vue application code, domain helpers, composables, Vite configuration, and tests. League-specific behavior is composed from shared defaults, sport-family defaults, and small overrides for the five supported leagues.
+
 The standalone SPA requests ESPN's public Site API directly. In the Tauri app, ESPN JSON requests go through a constrained Rust command using a native HTTPS client; the WebView does not fetch the ESPN API directly. No ESPN API key or account is configured. An internet connection is required for live scores, team data, standings, and remote logos; availability and response formats are controlled by ESPN. The app is not affiliated with or endorsed by ESPN.
 
 ```mermaid
@@ -83,6 +85,16 @@ Tauri starts the SPA's Vite development server on `http://localhost:8000` and op
 ```powershell
 npm run check
 ```
+
+For SPA-only checks, run the commands from `SportsScoreboard/`:
+
+```powershell
+npm run typecheck
+npm test
+npm run test:coverage
+```
+
+`npm test` and `npm run test:coverage` include the live ESPN smoke test and require network access; `npm run typecheck` does not. Run only deterministic unit and fixture-backed integration tests with `npx vitest run tests/unit tests/integration`. To run the Vite server without launching Tauri, use `npm run serve` from `SportsScoreboard/`; it stays in the foreground on port 8000, and `Ctrl+C` stops it. The port is configured as strict, so stop any existing listener on 8000 before starting another instance.
 
 Create a production build and NSIS installer locally:
 
