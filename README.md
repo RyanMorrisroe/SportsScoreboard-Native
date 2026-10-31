@@ -8,6 +8,8 @@ This is a native WebView wrapper, not a rewrite of the scoreboard UI and not a h
 
 The SPA provides scoreboards for College Football, NFL, MLB, NBA, and NHL, plus TV lineup, standings, game details, team details, and schedules. Users can choose favorite teams per league and customize sport-tab visibility and order. Preferences persist locally in browser storage and are not synced across browser profiles or devices. The app refreshes scoreboard data periodically and adapts its UI to desktop and mobile-sized windows.
 
+Packaged native release builds check GitHub Releases for a newer version once at launch by default. The check can be disabled in Settings; while disabled, no automatic release request is made, but a manual check remains available. The app only reports and opens the platform installer in the system browser; it never installs an update automatically. Browser and debug builds do not check for native app updates.
+
 The SPA is implemented in strict TypeScript, including its Vue application code, domain helpers, composables, Vite configuration, and tests. League-specific behavior is composed from shared defaults, sport-family defaults, and small overrides for the five supported leagues.
 
 The standalone SPA requests ESPN's public Site API directly. In the Tauri app, ESPN JSON requests go through a constrained Rust command using a native HTTPS client; the WebView does not fetch the ESPN API directly. No ESPN API key or account is configured. An internet connection is required for live scores, team data, standings, and remote logos; availability and response formats are controlled by ESPN. The app is not affiliated with or endorsed by ESPN.
@@ -41,11 +43,11 @@ The Tauri process registers one application-specific command for allowlisted ESP
 
 The configured distribution target is a 64-bit Windows NSIS setup executable. The installer defaults to a per-user installation and refuses to downgrade an installed version. Tauri's default WebView2 bootstrapper mode may download the WebView2 runtime when it is missing. The app needs internet access for ESPN API data and remote team logos.
 
-The installer is currently unsigned. Windows SmartScreen may display an unrecognized-publisher warning. No in-app updater is configured; install a newer release manually.
+The installer is currently unsigned. Windows SmartScreen may display an unrecognized-publisher warning. When an update is available, the app opens the release's NSIS setup executable in the system browser; run the downloaded installer to update.
 
 ## Android Distribution
 
-The Android target requires API 36 or newer. SPA release builds produce an ARM64 APK signed with the project's persistent private sideloading key and attach it to the matching GitHub release. This is not a Play Store release and the signing key used in github builds is kept private; Android requires APKs to be signed, and the stable key allows users to install later releases over the existing app.
+The Android target requires API 36 or newer. SPA release builds produce an ARM64 APK signed with the project's persistent private sideloading key and attach it to the matching GitHub release. This is not a Play Store release and the signing key used in github builds is kept private; Android requires APKs to be signed, and the stable key allows users to install later releases over the existing app. When an update is available, the app opens the APK in the system browser; Android may ask you to allow installs from that browser and confirm the update.
 
 ## Development Requirements
 

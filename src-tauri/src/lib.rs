@@ -1,15 +1,17 @@
 mod espn_proxy;
+mod release_check;
 
 use std::{sync::OnceLock, time::Duration};
 
 use reqwest::{Client, redirect::Policy};
+use tauri::AppHandle;
 
 #[cfg(target_os = "android")]
 use jni::{
+    EnvUnowned,
     errors::ThrowRuntimeExAndDefault,
     jni_mangle,
     objects::{JClass, JObject},
-    EnvUnowned,
 };
 
 static ESPN_CLIENT: OnceLock<Result<Client, String>> = OnceLock::new();
@@ -61,6 +63,16 @@ async fn fetch_espn(url: String) -> Result<serde_json::Value, String> {
     .await
 }
 
+#[tauri::command]
+async fn check_for_updates(app: AppHandle) -> Result<Option<release_check::AppUpdate>, String> {
+    if cfg!(debug_assertions) {
+        return Ok(None);
+    }
+
+    let current_version = app.package_info().version.to_string();
+    release_check::check_for_update(&current_version, release_check::Platform::current()?).await
+}
+
 #[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[jni_mangle("com.ryan.sportsscoreboard.MainActivity")]
@@ -77,7 +89,8 @@ pub fn initializeRustlsPlatformVerifier<'local>(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![fetch_espn])
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![fetch_espn, check_for_updates])
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
