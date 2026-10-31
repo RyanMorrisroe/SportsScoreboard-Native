@@ -65,11 +65,9 @@ async fn fetch_espn(url: String) -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 async fn check_for_updates(app: AppHandle) -> Result<Option<release_check::AppUpdate>, String> {
-    if cfg!(debug_assertions) {
-        return Ok(None);
-    }
-
-    let current_version = app.package_info().version.to_string();
+    let installed_version = app.package_info().version.to_string();
+    let current_version =
+        release_check::version_for_update_check(&installed_version, cfg!(debug_assertions));
     release_check::check_for_update(&current_version, release_check::Platform::current()?).await
 }
 
