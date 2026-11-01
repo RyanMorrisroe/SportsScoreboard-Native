@@ -87,6 +87,14 @@ fn parse_composite_version(value: &str) -> Option<CompositeVersion> {
     ]))
 }
 
+pub(crate) fn version_for_update_check(installed_version: &str, debug_build: bool) -> String {
+    if debug_build {
+        "0.0.0-wrapper.0.0.0".to_string()
+    } else {
+        installed_version.to_string()
+    }
+}
+
 fn asset_matches(name: &str, platform: Platform) -> bool {
     match platform {
         Platform::Android => name.ends_with(".apk"),
@@ -225,8 +233,9 @@ mod tests {
     use reqwest::StatusCode;
 
     use super::{
-        AppUpdate, GitHubRelease, MAX_RESPONSE_BYTES, Platform, append_response_chunk,
-        parse_composite_version, select_update, valid_asset_url, validate_response,
+        append_response_chunk, parse_composite_version, select_update, valid_asset_url,
+        validate_response, version_for_update_check, AppUpdate, GitHubRelease, Platform,
+        MAX_RESPONSE_BYTES,
     };
 
     fn release(tag: &str, name: &str, url: &str) -> GitHubRelease {
@@ -251,6 +260,32 @@ mod tests {
         assert!(parse_composite_version("v01.7.1-wrapper.0.1.0").is_none());
         assert!(parse_composite_version("1.7.1-wrapper.0.1").is_none());
         assert!(parse_composite_version("1.7.1").is_none());
+    }
+
+    #[test]
+    fn debug_baseline_makes_latest_release_available() {
+        let releases = vec![
+            release(
+                "v1.8.0-wrapper.0.1.0",
+                "app-universal-release.apk",
+                "https://github.com/RyanMorrisroe/SportsScoreboard-Native/releases/download/v1.8.0-wrapper.0.1.0/app-universal-release.apk",
+            ),
+            release(
+                "v1.8.1-wrapper.0.1.0",
+                "app-universal-release.apk",
+                "https://github.com/RyanMorrisroe/SportsScoreboard-Native/releases/download/v1.8.1-wrapper.0.1.0/app-universal-release.apk",
+            ),
+        ];
+        let current_version = version_for_update_check("0.1.0", true);
+        assert_eq!(
+            version_for_update_check("1.8.0-wrapper.0.1.0", false),
+            "1.8.0-wrapper.0.1.0"
+        );
+
+        let update = select_update(releases, &current_version, Platform::Android)
+            .unwrap()
+            .unwrap();
+        assert_eq!(update.version, "1.8.1-wrapper.0.1.0");
     }
 
     #[test]

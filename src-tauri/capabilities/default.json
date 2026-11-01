@@ -2,11 +2,19 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Baseline Tauri core permissions for the main window; the app registers an allowlisted ESPN command and grants no filesystem or shell access.",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:allow-open-url"
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://github.com/RyanMorrisroe/SportsScoreboard-Native/releases/download/*/*.apk"
+        },
+        {
+          "url": "https://github.com/RyanMorrisroe/SportsScoreboard-Native/releases/download/*/*-setup.exe"
+        }
+      ]
+    }
   ]
 }
