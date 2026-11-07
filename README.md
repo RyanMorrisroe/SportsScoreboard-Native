@@ -6,11 +6,11 @@ This is a native WebView wrapper, not a rewrite of the scoreboard UI and not a h
 
 ## What The App Does
 
-The SPA provides scoreboards for College Football, NFL, MLB, NBA, and NHL, plus TV lineup, standings, game details, team details, and schedules. Users can choose favorite teams per league and customize sport-tab visibility and order. Preferences persist locally in browser storage and are not synced across browser profiles or devices. The app refreshes scoreboard data periodically and adapts its UI to desktop and mobile-sized windows.
+The SPA provides scoreboards for College Football, NFL, MLB, NBA, NCAA men's basketball, and NHL, plus TV lineup, standings, game details, team details, and schedules. Users can choose favorite teams per league and customize sport-tab visibility and order. Preferences persist locally in browser storage and are not synced across browser profiles or devices. The app refreshes scoreboard data periodically and adapts its UI to desktop and mobile-sized windows.
 
 Packaged native release builds check GitHub Releases for a newer version once at launch by default. The check can be disabled in Settings; while disabled, no automatic release request is made, but a manual check remains available. The app only reports and opens the platform installer in the system browser; it never installs an update automatically. Browser and debug builds do not check for native app updates.
 
-The SPA is implemented in strict TypeScript, including its Vue application code, domain helpers, composables, Vite configuration, and tests. League-specific behavior is composed from shared defaults, sport-family defaults, and small overrides for the five supported leagues.
+The SPA is implemented in strict TypeScript, including its Vue application code, domain helpers, composables, Vite configuration, and tests. League-specific behavior is composed from shared defaults, sport-family defaults, and small overrides for the six supported leagues.
 
 The standalone SPA requests ESPN's public Site API directly. In the Tauri app, ESPN JSON requests go through a constrained Rust command using a native HTTPS client; the WebView does not fetch the ESPN API directly. No ESPN API key or account is configured. An internet connection is required for live scores, team data, standings, and remote logos; availability and response formats are controlled by ESPN. The app is not affiliated with or endorsed by ESPN.
 
