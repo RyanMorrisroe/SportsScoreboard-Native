@@ -16,6 +16,7 @@ fn valid_sport_league(sport: &str, league: &str) -> bool {
             | ("football", "nfl")
             | ("baseball", "mlb")
             | ("basketball", "nba")
+            | ("basketball", "mens-college-basketball")
             | ("hockey", "nhl")
     )
 }
@@ -48,6 +49,11 @@ fn valid_scoreboard_query(league: &str, params: &HashMap<String, String>) -> boo
         "mlb" | "nba" | "nhl" => params
             .iter()
             .all(|(key, value)| key == "dates" && value.len() == 8 && valid_numeric_id(value)),
+        "mens-college-basketball" => params.iter().all(|(key, value)| match key.as_str() {
+            "dates" => value.len() == 8 && valid_numeric_id(value),
+            "groups" => valid_numeric_id(value),
+            _ => false,
+        }),
         _ => false,
     }
 }
@@ -79,6 +85,9 @@ pub(super) fn is_allowed_espn_url(url: &Url) -> bool {
         return match segments.as_slice() {
             ["apis", "site", "v2", "sports", _, _, "scoreboard"] => {
                 valid_scoreboard_query(league, &params)
+            }
+            ["apis", "site", "v2", "sports", "basketball", "mens-college-basketball", "teams"] => {
+                params.len() == 1 && params.get("limit").is_some_and(|limit| limit == "1000")
             }
             ["apis", "site", "v2", "sports", _, _, "summary"] => {
                 params.len() == 1
@@ -215,14 +224,22 @@ mod tests {
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week=3&seasontype=2",
             "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261017",
             "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=20261107",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=20261107&groups=2",
             "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
             "https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=401234567",
             "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401234567",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=401918948",
             "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/12",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/97",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams/97/schedule",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000",
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12/schedule",
             "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams/12",
             "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams/12/schedule",
             "https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings",
+            "https://site.api.espn.com/apis/v2/sports/basketball/mens-college-basketball/standings",
+            "https://site.api.espn.com/apis/v2/sports/basketball/mens-college-basketball/standings?group=2",
             "https://site.api.espn.com/apis/v2/sports/football/nfl/standings?group=8",
         ];
 
@@ -247,12 +264,19 @@ mod tests {
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261017",
             "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
             "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=2026101x",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=2026110x",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=20261107&groups=abc",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?week=1",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=20261107&unknown=1",
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary",
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=abc",
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=123&extra=1",
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/not-a-number",
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12?foo=bar",
             "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/12/extra",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1001",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000&extra=1",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams?limit=1000",
             "https://site.api.espn.com/apis/v2/sports/football/nfl/standings?group=abc",
             "https://site.api.espn.com/apis/v2/sports/football/nfl/standings?group=1&group=2",
             "https://site.api.espn.com/apis/site/v2/sports/football/unknown/scoreboard",
