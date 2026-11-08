@@ -96,6 +96,8 @@ npm test
 npm run test:coverage
 ```
 
+The SPA also has an opt-in README screenshot generator; see its [screenshot instructions](SportsScoreboard/README.md#regenerating-screenshots). It is not run by native or SPA builds.
+
 `npm test` and `npm run test:coverage` include the live ESPN smoke test and require network access; `npm run typecheck` does not. Run only deterministic unit and fixture-backed integration tests with `npx vitest run tests/unit tests/integration`. To run the Vite server without launching Tauri, use `npm run serve` from `SportsScoreboard/`; it stays in the foreground on port 8000, and `Ctrl+C` stops it. The port is configured as strict, so stop any existing listener on 8000 before starting another instance.
 
 Create a production build and NSIS installer locally:
