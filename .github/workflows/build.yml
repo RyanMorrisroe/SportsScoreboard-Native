@@ -26,6 +26,11 @@ jobs:
         with:
           submodules: ${{ github.event_name != 'repository_dispatch' }}
 
+      - name: Set up Node.js for event validation
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
       - name: Validate SPA release event
         if: github.event_name == 'repository_dispatch'
         shell: pwsh
@@ -33,16 +38,7 @@ jobs:
           SPA_TAG: ${{ github.event.client_payload.tag }}
           SPA_VERSION: ${{ github.event.client_payload.version }}
           SPA_SHA: ${{ github.event.client_payload.sha }}
-        run: |
-          if ($env:SPA_TAG -notmatch '^v(?<version>(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))$') {
-            throw "Unsupported SPA release tag: $env:SPA_TAG"
-          }
-          if ($Matches.version -ne $env:SPA_VERSION) {
-            throw "SPA tag and payload version do not match"
-          }
-          if ($env:SPA_SHA -notmatch '^[0-9a-f]{40}$') {
-            throw "Invalid SPA commit SHA"
-          }
+        run: node scripts/validate-release-event.mjs
 
       - name: Check out released SPA source
         if: github.event_name == 'repository_dispatch'
@@ -51,6 +47,15 @@ jobs:
           repository: RyanMorrisroe/SportsScoreboard
           ref: ${{ github.event.client_payload.tag }}
           path: SportsScoreboard
+
+      - name: Set up Node.js with npm cache
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            SportsScoreboard/package-lock.json
 
       - name: Verify released SPA commit
         if: github.event_name == 'repository_dispatch'
@@ -62,11 +67,6 @@ jobs:
           if ($checkedOutSha -ne $env:SPA_SHA) {
             throw "Checked out SPA commit $checkedOutSha does not match release commit $env:SPA_SHA"
           }
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -126,6 +126,11 @@ jobs:
         with:
           submodules: ${{ github.event_name != 'repository_dispatch' }}
 
+      - name: Set up Node.js for event validation
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
       - name: Validate SPA release event
         if: github.event_name == 'repository_dispatch'
         shell: bash
@@ -133,21 +138,7 @@ jobs:
           SPA_TAG: ${{ github.event.client_payload.tag }}
           SPA_VERSION: ${{ github.event.client_payload.version }}
           SPA_SHA: ${{ github.event.client_payload.sha }}
-        run: |
-          if [[ "$SPA_TAG" =~ ^v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$ ]]; then
-            tag_version="${BASH_REMATCH[1]}"
-          else
-            echo "Unsupported SPA release tag: $SPA_TAG" >&2
-            exit 1
-          fi
-          if [[ "$tag_version" != "$SPA_VERSION" ]]; then
-            echo "SPA tag and payload version do not match" >&2
-            exit 1
-          fi
-          if [[ ! "$SPA_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "Invalid SPA commit SHA" >&2
-            exit 1
-          fi
+        run: node scripts/validate-release-event.mjs
 
       - name: Check out released SPA source
         if: github.event_name == 'repository_dispatch'
@@ -156,6 +147,15 @@ jobs:
           repository: RyanMorrisroe/SportsScoreboard
           ref: ${{ github.event.client_payload.tag }}
           path: SportsScoreboard
+
+      - name: Set up Node.js with npm cache
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            SportsScoreboard/package-lock.json
 
       - name: Verify released SPA commit
         if: github.event_name == 'repository_dispatch'
@@ -168,12 +168,6 @@ jobs:
             echo "Checked out SPA commit $checked_out_sha does not match release commit $SPA_SHA" >&2
             exit 1
           fi
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
 
       - name: Set up Java
         uses: actions/setup-java@v5

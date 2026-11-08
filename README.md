@@ -8,7 +8,7 @@ This is a native WebView wrapper, not a rewrite of the scoreboard UI and not a h
 
 The SPA provides scoreboards for College Football, NFL, MLB, NBA, NCAA men's basketball, and NHL, plus TV lineup, standings, game details, team details, and schedules. Users can choose favorite teams per league and customize sport-tab visibility and order. Preferences persist locally in browser storage and are not synced across browser profiles or devices. The app refreshes scoreboard data periodically and adapts its UI to desktop and mobile-sized windows.
 
-Packaged native release builds check GitHub Releases for a newer version once at launch by default. The check can be disabled in Settings; while disabled, no automatic release request is made, but a manual check remains available. The app only reports and opens the platform installer in the system browser; it never installs an update automatically. Browser and debug builds do not check for native app updates.
+When automatic checks are enabled, native Windows and Android builds check GitHub Releases for a newer version once at launch. Debug builds intentionally exercise this upgrade path before release. The check can be disabled in Settings; while disabled, no automatic release request is made, but a manual check remains available. The app only reports and opens the platform installer in the system browser; it never installs an update automatically. Browser builds do not check for native app updates.
 
 The SPA is implemented in strict TypeScript, including its Vue application code, domain helpers, composables, Vite configuration, and tests. League-specific behavior is composed from shared defaults, sport-family defaults, and small overrides for the six supported leagues.
 
@@ -96,6 +96,8 @@ npm test
 npm run test:coverage
 ```
 
+The SPA also has an opt-in README screenshot generator; see its [screenshot instructions](SportsScoreboard/README.md#regenerating-screenshots). It is not run by native or SPA builds.
+
 `npm test` and `npm run test:coverage` include the live ESPN smoke test and require network access; `npm run typecheck` does not. Run only deterministic unit and fixture-backed integration tests with `npx vitest run tests/unit tests/integration`. To run the Vite server without launching Tauri, use `npm run serve` from `SportsScoreboard/`; it stays in the foreground on port 8000, and `Ctrl+C` stops it. The port is configured as strict, so stop any existing listener on 8000 before starting another instance.
 
 Create a production build and NSIS installer locally:
@@ -124,7 +126,7 @@ The Rust tests cover the native ESPN URL allowlist, redirects, response limits, 
 
 ## Versioning And Releases
 
-The wrapper version is `0.1.0` in both the root `package.json` and `src-tauri/Cargo.toml`; keep these values synchronized when changing the wrapper version. The published app version combines the stable SPA release version with the wrapper version. For example, SPA release `v1.3.0` and wrapper version `0.1.0` produce app version `1.3.0-wrapper.0.1.0` and wrapper release tag `v1.3.0-wrapper.0.1.0`. CI temporarily applies that composite version to the Rust package and Tauri build config; it also uses the workflow run number as Android's monotonically increasing `versionCode`. These generated overrides are not committed.
+The wrapper version is `1.0.0` in both the root `package.json` and `src-tauri/Cargo.toml`; keep these values synchronized when changing the wrapper version. The published app version combines the stable SPA release version with the wrapper version. For example, SPA release `v1.3.0` and wrapper version `1.0.0` produce app version `1.3.0-wrapper.1.0.0` and wrapper release tag `v1.3.0-wrapper.1.0.0`. CI temporarily applies that composite version to the Rust package and Tauri build config; it also uses the workflow run number as Android's monotonically increasing `versionCode`. These generated overrides are not committed.
 
 Wrapper pull requests run Windows and Android builds but do not publish. A published stable SPA release with a `vMAJOR.MINOR.PATCH` tag triggers the cross-repository dispatch, builds the exact released SPA tag and commit, then publishes the NSIS installer and signed ARM64 APK in this repository. SPA branch pushes do not trigger wrapper releases. Duplicate release dispatches are ignored when the composite wrapper release already exists.
 
